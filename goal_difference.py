@@ -1,6 +1,10 @@
 import os.path
 import sys
 import pandas as pd
+import file_parser as fp
+
+# Headers for weather data file
+headers = ['Team', 'P', 'W', 'L', 'D', 'F', 'A', 'Pts']
 
 # Check command line arguments for filename, default to 'soccer.dat' if not provided
 if len(sys.argv) > 1:
@@ -10,20 +14,19 @@ else:
 
 # Check that file is present
 if os.path.exists(filename):
-    # Add relevant data (team, points for, points against) to dataframe
-    # Skipping 1st row with '<pre>'
-    df = pd.read_fwf(filename, colspecs=[(7, 23), (43, 50), (50, 56)], skiprows=1, header=1)
-
-    # Add empty column to store goal differences
-    df['diff'] = ""
+    # Read file into pandas dataframe
+    header_line = fp.find_header_row(filename, headers)
+    widths = fp.get_col_widths(filename, header_line)
+    df = pd.read_fwf(filename, colspecs=widths, skiprows=header_line-1)
 
     # Clean data
-    df['F'] = df['F'].str.extract('(\d+)', expand=False)  # Remove non-integer values (e.g. '-')
+    df = df[['Team', 'F', 'A']]  # Keep only relevant columns
+    df['F'] = df['F'].str.extract('(\d+)', expand=False)  # Remove non-integer values
     df = df.dropna()  # Remove entries with NaN
 
-    min_goal_diff = sys.maxsize  # Set initial min as arbitrarily large value
-
     # Calculate goal difference for each team
+    df['diff'] = ""  # Add empty column to store goal differences
+    min_goal_diff = sys.maxsize  # Set initial min as arbitrarily large value
     for index, row in df.iterrows():
         row['diff'] = abs(int(row['F']) - int(row['A']))  # Store goal difference for this team
 
